@@ -100,8 +100,8 @@ Script ပြီးဆုံးသည့်အခါ ထွက်လာသော
   "DownMbps": "200",
   "Socks5Listen": "127.0.0.1:1080-1083",
   "Insecure": true,
-  "RecvWindowConn": 1048576,
-  "RecvWindow": 393216,
+  "RecvWindowConn": 5242880,
+  "RecvWindow": 20971520,
   "Engine": "libuz.so"
 }
 ```

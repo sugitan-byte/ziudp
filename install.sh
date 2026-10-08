@@ -160,10 +160,10 @@ cat <<EOF > "$CONFIG_FILE"
   "alpn": "hysteria",
   "up_mbps": ${SERVER_UP_MBPS},
   "down_mbps": ${SERVER_DOWN_MBPS},
-  "recv_window_conn": 1048576,
-  "recv_window_client": 393216,
+  "recv_window_conn": 5242880,
+  "recv_window_client": 20971520,
   "max_conn_client": 4096,
-  "disable_mtu_discovery": true
+  "disable_mtu_discovery": false
 }
 EOF
 chmod 600 "$CONFIG_FILE"
@@ -312,8 +312,8 @@ show_config() {
   "DownMbps": "200",
   "Socks5Listen": "127.0.0.1:1080-1083",
   "Insecure": true,
-  "RecvWindowConn": 1048576,
-  "RecvWindow": 393216,
+  "RecvWindowConn": 5242880,
+  "RecvWindow": 20971520,
   "Engine": "libuz.so"
 }
 EOFCFG
@@ -366,9 +366,9 @@ change_speed() {
     read -rp "Enter New Client Upload Speed (Server Download Mbps) [Default: 100]: " N_DOWN
     N_UP=${N_UP:-200}
     N_DOWN=${N_DOWN:-100}
-    jq --argjson u "$N_UP" --argjson d "$N_DOWN" '.up_mbps = $u | .down_mbps = $d | .disable_mtu_discovery = true' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    jq --argjson u "$N_UP" --argjson d "$N_DOWN" '.up_mbps = $u | .down_mbps = $d | .recv_window_conn = 5242880 | .recv_window_client = 20971520 | .disable_mtu_discovery = false' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
     systemctl restart "$SERVICE_NAME"
-    echo -e "${GREEN}[+] Speed limits updated (Brutal: ${N_UP} Mbps Download / ${N_DOWN} Mbps Upload)!${NC}"
+    echo -e "${GREEN}[+] Speed limits updated (Brutal: ${N_UP} Mbps Download / ${N_DOWN} Mbps Upload, 20MB buffer)!${NC}"
     sleep 2
     show_menu
 }
@@ -479,8 +479,8 @@ cat <<EOFOUT
   "DownMbps": "${SERVER_UP_MBPS}",
   "Socks5Listen": "127.0.0.1:1080-1083",
   "Insecure": true,
-  "RecvWindowConn": 1048576,
-  "RecvWindow": 393216,
+  "RecvWindowConn": 5242880,
+  "RecvWindow": 20971520,
   "Engine": "libuz.so"
 }
 EOFOUT
@@ -488,6 +488,6 @@ EOFOUT
 echo ""
 echo -e "${CYAN}${BOLD}[2] Single-line JSON (For Admin Panel NetworkPayload):${NC}"
 echo ""
-echo "{\"Server\":\"${SERVER_DOMAIN}\",\"ServerIP\":\"${SERVER_IP}\",\"Protocol\":\"Hysteria1 (UDP)\",\"Obfs\":\"${OBFS_KEY}\",\"Auth\":\"${AUTH_KEY}\",\"Ports\":[\"6000-19999\"],\"UpMbps\":\"${SERVER_DOWN_MBPS}\",\"DownMbps\":\"${SERVER_UP_MBPS}\",\"Socks5Listen\":\"127.0.0.1:1080-1083\",\"Insecure\":true,\"RecvWindowConn\":1048576,\"RecvWindow\":393216,\"Engine\":\"libuz.so\"}"
+echo "{\"Server\":\"${SERVER_DOMAIN}\",\"ServerIP\":\"${SERVER_IP}\",\"Protocol\":\"Hysteria1 (UDP)\",\"Obfs\":\"${OBFS_KEY}\",\"Auth\":\"${AUTH_KEY}\",\"Ports\":[\"6000-19999\"],\"UpMbps\":\"${SERVER_DOWN_MBPS}\",\"DownMbps\":\"${SERVER_UP_MBPS}\",\"Socks5Listen\":\"127.0.0.1:1080-1083\",\"Insecure\":true,\"RecvWindowConn\":5242880,\"RecvWindow\":20971520,\"Engine\":\"libuz.so\"}"
 echo ""
 echo -e "${GREEN}${BOLD}Enjoy your high-speed ZI-UDP Tunnel!${NC}"
