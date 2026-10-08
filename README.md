@@ -20,12 +20,14 @@ bash <(curl -fsSL https://raw.githubusercontent.com/sugitan-byte/ziudp/main/inst
 
 ## 🛠 Features (ပါဝင်သော စွမ်းဆောင်ရည်များ)
 
-- ⚡ **Hysteria 1 Core:** မြန်ဆန်ပြီး Latency နည်းပါးသော Apernet Hysteria 1 Engine ကို အသုံးပြုထားပါသည်။
+- ⚡ **Hysteria 1 Core & Brutal Engine:** မြန်ဆန်ပြီး Latency နည်းပါးသော Apernet Hysteria 1 Engine ကို အသုံးပြုထားပါသည်။
+- 🚀 **Brutal Congestion Control (200+ Mbps):** ISP များ၏ Speed Throttling (Speed လျှော့ချခြင်း) ကို အပြည့်အဝ ကျော်လွှားပြီး Original Max Speed 200+ Mbps အပြည့်ရရှိစေရန် Brutal Rate Controller ဖြင့် ထိန်းချုပ်ထားပါသည်။
 - 🔄 **UDP Port Hopping:** UDP Ports `6000:19999` range တစ်ခုလုံးကို internal port (5667) သို့ iptables ဖြင့် အလိုအလျောက် Redirect လုပ်ပေးထားပါသည်။
+- 📶 **Anti-Throttling MTU Safety:** 4G/5G Cellular ကွန်ရက်များတွင် Packet drop မဖြစ်စေရန် Safe MTU Discovery Optimization ထည့်သွင်းထားပါသည်။
 - 🔒 **Obfuscation & TLS Security:** TLS Certificate အလိုအလျောက် ထုတ်ပေးပြီး `obfs` password ဖြင့် traffic ကို ဖုံးကွယ်ထားပါသည်။
 - 📱 **ZIVPN & Ko Ko VPN Ready:** App တွင် တိုက်ရိုက် Paste လုပ်ရုံဖြင့် ချိတ်ဆက်နိုင်မည့် Client JSON Format ကို ထုတ်ပေးပါသည်။
-- 🎛 **Easy Management Menu:** Install ပြီးပါက Terminal တွင် `ziudp` ဟု ရိုက်လိုက်ရုံဖြင့် User အသစ်ထည့်ခြင်း၊ Password ပြောင်းခြင်း၊ Status စစ်ဆေးခြင်းတို့ကို ပြုလုပ်နိုင်ပါသည်။
-- 🚀 **BBR & Network Optimization:** Linux Kernel တွင် BBR Congestion Control နှင့် UDP Buffer Window များကို အမြန်ဆုံး အနေအထားသို့ အလိုအလျောက် Optimize လုပ်ပေးပါသည်။
+- 🎛 **Easy Management Menu:** Install ပြီးပါက Terminal တွင် `ziudp` ဟု ရိုက်လိုက်ရုံဖြင့် User အသစ်ထည့်ခြင်း၊ Speed Limit (200/300 Mbps) ပြောင်းခြင်း၊ Status စစ်ဆေးခြင်းတို့ကို ပြုလုပ်နိုင်ပါသည်။
+- 🚀 **BBR & 64MB Buffer Tuning:** Linux Kernel တွင် 64MB Network Buffer Window များကို အမြင့်ဆုံး အနေအထားသို့ အလိုအလျောက် Optimize လုပ်ပေးပါသည်။
 
 ---
 
@@ -46,11 +48,12 @@ ziudp
  2) Add New User Password
  3) Remove User Password
  4) Change Obfuscation (obfs) Password
- 5) Check Server Status
- 6) View Live Logs
- 7) Restart Server
- 8) Reconfigure iptables Port Hopping
- 9) Uninstall ZI-UDP Server
+ 5) Tune / Change Speed Limits (Brutal 200/300 Mbps)
+ 6) Check Server Status
+ 7) View Live Logs
+ 8) Restart Server
+ 9) Reconfigure iptables Port Hopping
+ 10) Uninstall ZI-UDP Server
  0) Exit
 ------------------------------------------
 ```

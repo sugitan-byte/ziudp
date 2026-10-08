@@ -112,6 +112,15 @@ RANDOM_AUTH=$(openssl rand -hex 8)
 read -rp "Enter Client Authentication (auth) Password [Press Enter for: ${RANDOM_AUTH}]: " INPUT_AUTH
 AUTH_KEY=${INPUT_AUTH:-$RANDOM_AUTH}
 
+# Bandwidth Limits (Enables Hysteria Brutal Congestion Control to bypass ISP throttling)
+DEFAULT_UP_MBPS="200"
+read -rp "Enter Max Download Speed for Clients in Mbps (Server Upload) [Default: ${DEFAULT_UP_MBPS}]: " INPUT_UP_MBPS
+SERVER_UP_MBPS=${INPUT_UP_MBPS:-$DEFAULT_UP_MBPS}
+
+DEFAULT_DOWN_MBPS="100"
+read -rp "Enter Max Upload Speed for Clients in Mbps (Server Download) [Default: ${DEFAULT_DOWN_MBPS}]: " INPUT_DOWN_MBPS
+SERVER_DOWN_MBPS=${INPUT_DOWN_MBPS:-$DEFAULT_DOWN_MBPS}
+
 echo ""
 echo -e "${BLUE}[*] Downloading Hysteria 1 (${HYSTERIA_VERSION}) for ${BIN_ARCH}...${NC}"
 DOWNLOAD_URL="https://github.com/apernet/hysteria/releases/download/${HYSTERIA_VERSION}/hysteria-linux-${BIN_ARCH}"
@@ -133,8 +142,8 @@ openssl req -new -newkey rsa:2048 -days 3650 -nodes -x509 \
 chmod 600 "$KEY_FILE"
 chmod 644 "$CERT_FILE"
 
-# Generate Server config.json
-echo -e "${BLUE}[*] Creating Hysteria server config...${NC}"
+# Generate Server config.json with Brutal Congestion Control (up_mbps / down_mbps)
+echo -e "${BLUE}[*] Creating Hysteria server config with Brutal 200+ Mbps tuning...${NC}"
 cat <<EOF > "$CONFIG_FILE"
 {
   "listen": ":${INTERNAL_PORT}",
@@ -149,18 +158,32 @@ cat <<EOF > "$CONFIG_FILE"
     ]
   },
   "alpn": "hysteria",
+  "up_mbps": ${SERVER_UP_MBPS},
+  "down_mbps": ${SERVER_DOWN_MBPS},
   "recv_window_conn": 1048576,
   "recv_window_client": 393216,
   "max_conn_client": 4096,
-  "disable_mtu_discovery": false
+  "disable_mtu_discovery": true
 }
 EOF
 chmod 600 "$CONFIG_FILE"
 
-# Configure iptables Port Hopping
+# Configure iptables Port Hopping & Firewall
 echo -e "${BLUE}[*] Configuring iptables UDP Port Forwarding (${PORT_RANGE} -> ${INTERNAL_PORT})...${NC}"
 iptables -t nat -D PREROUTING -p udp --dport "$PORT_RANGE" -j REDIRECT --to-ports "$INTERNAL_PORT" 2>/dev/null || true
 iptables -t nat -A PREROUTING -p udp --dport "$PORT_RANGE" -j REDIRECT --to-ports "$INTERNAL_PORT"
+
+# Ensure INPUT chain accepts traffic on hopping range and internal port
+iptables -I INPUT -p udp --dport "$INTERNAL_PORT" -j ACCEPT 2>/dev/null || true
+iptables -I INPUT -p udp --dport "$PORT_RANGE" -j ACCEPT 2>/dev/null || true
+
+# Allow in UFW if enabled
+if command -v ufw >/dev/null 2>&1 && ufw status 2>/dev/null | grep -q "Status: active"; then
+    echo -e "${BLUE}[*] Opening UDP ports in UFW firewall...${NC}"
+    ufw allow ${PORT_RANGE}/udp >/dev/null 2>&1 || true
+    ufw allow ${INTERNAL_PORT}/udp >/dev/null 2>&1 || true
+    ufw reload >/dev/null 2>&1 || true
+fi
 
 # Save iptables rules
 if command -v netfilter-persistent >/dev/null 2>&1; then
@@ -169,17 +192,19 @@ elif command -v service >/dev/null 2>&1; then
     service iptables save >/dev/null 2>&1 || true
 fi
 
-# Kernel Network Performance Tuning (BBR, rmem, wmem)
-echo -e "${BLUE}[*] Optimizing Linux network buffer & BBR settings...${NC}"
+# Kernel Network Performance Tuning (BBR, high-speed 64MB rmem/wmem buffers for Brutal)
+echo -e "${BLUE}[*] Optimizing Linux network buffer (64MB) & sysctl settings for 200+ Mbps...${NC}"
 cat <<EOF > /etc/sysctl.d/99-ziudp.conf
 net.core.default_qdisc = fq
 net.ipv4.tcp_congestion_control = bbr
 net.ipv4.ip_forward = 1
 net.ipv6.conf.all.forwarding = 1
-net.core.rmem_max = 8388608
-net.core.wmem_max = 8388608
-net.core.rmem_default = 1048576
-net.core.wmem_default = 1048576
+net.core.rmem_max = 67108864
+net.core.wmem_max = 67108864
+net.core.rmem_default = 26214400
+net.core.wmem_default = 26214400
+net.ipv4.udp_rmem_min = 16384
+net.ipv4.udp_wmem_min = 16384
 EOF
 sysctl --system >/dev/null 2>&1 || true
 
@@ -236,24 +261,26 @@ show_menu() {
     echo -e " 2) Add New User Password"
     echo -e " 3) Remove User Password"
     echo -e " 4) Change Obfuscation (obfs) Password"
-    echo -e " 5) Check Server Status"
-    echo -e " 6) View Live Logs"
-    echo -e " 7) Restart Server"
-    echo -e " 8) Reconfigure iptables Port Hopping"
-    echo -e " 9) Uninstall ZI-UDP Server"
+    echo -e " 5) Tune / Change Speed Limits (Brutal 200/300 Mbps)"
+    echo -e " 6) Check Server Status"
+    echo -e " 7) View Live Logs"
+    echo -e " 8) Restart Server"
+    echo -e " 9) Reconfigure iptables Port Hopping"
+    echo -e " 10) Uninstall ZI-UDP Server"
     echo -e " 0) Exit"
     echo -e "${CYAN}------------------------------------------${NC}"
-    read -rp "Select an option [0-9]: " CHOICE
+    read -rp "Select an option [0-10]: " CHOICE
     case $CHOICE in
         1) show_config ;;
         2) add_user ;;
         3) remove_user ;;
         4) change_obfs ;;
-        5) check_status ;;
-        6) view_logs ;;
-        7) restart_server ;;
-        8) reconfig_iptables ;;
-        9) uninstall_ziudp ;;
+        5) change_speed ;;
+        6) check_status ;;
+        7) view_logs ;;
+        8) restart_server ;;
+        9) reconfig_iptables ;;
+        10) uninstall_ziudp ;;
         0) exit 0 ;;
         *) echo -e "${RED}Invalid option!${NC}"; sleep 1; show_menu ;;
     esac
@@ -327,6 +354,21 @@ change_obfs() {
         systemctl restart "$SERVICE_NAME"
         echo -e "${GREEN}[+] Obfs updated successfully!${NC}"
     fi
+    sleep 2
+    show_menu
+}
+
+change_speed() {
+    CUR_UP=$(jq -r '.up_mbps // 200' "$CONFIG_FILE")
+    CUR_DOWN=$(jq -r '.down_mbps // 100' "$CONFIG_FILE")
+    echo -e "${YELLOW}Current Speed Limits: Download for Clients: ${CUR_UP} Mbps | Upload for Clients: ${CUR_DOWN} Mbps${NC}"
+    read -rp "Enter New Client Download Speed (Server Upload Mbps) [Default: 200]: " N_UP
+    read -rp "Enter New Client Upload Speed (Server Download Mbps) [Default: 100]: " N_DOWN
+    N_UP=${N_UP:-200}
+    N_DOWN=${N_DOWN:-100}
+    jq --argjson u "$N_UP" --argjson d "$N_DOWN" '.up_mbps = $u | .down_mbps = $d | .disable_mtu_discovery = true' "$CONFIG_FILE" > "${CONFIG_FILE}.tmp" && mv "${CONFIG_FILE}.tmp" "$CONFIG_FILE"
+    systemctl restart "$SERVICE_NAME"
+    echo -e "${GREEN}[+] Speed limits updated (Brutal: ${N_UP} Mbps Download / ${N_DOWN} Mbps Upload)!${NC}"
     sleep 2
     show_menu
 }
@@ -433,8 +475,8 @@ cat <<EOFOUT
     "13001-16500",
     "16501-19999"
   ],
-  "UpMbps": "50",
-  "DownMbps": "200",
+  "UpMbps": "${SERVER_DOWN_MBPS}",
+  "DownMbps": "${SERVER_UP_MBPS}",
   "Socks5Listen": "127.0.0.1:1080-1083",
   "Insecure": true,
   "RecvWindowConn": 1048576,
@@ -446,6 +488,6 @@ EOFOUT
 echo ""
 echo -e "${CYAN}${BOLD}[2] Single-line JSON (For Admin Panel NetworkPayload):${NC}"
 echo ""
-echo "{\"Server\":\"${SERVER_DOMAIN}\",\"ServerIP\":\"${SERVER_IP}\",\"Protocol\":\"Hysteria1 (UDP)\",\"Obfs\":\"${OBFS_KEY}\",\"Auth\":\"${AUTH_KEY}\",\"Ports\":[\"6000-19999\"],\"UpMbps\":\"50\",\"DownMbps\":\"200\",\"Socks5Listen\":\"127.0.0.1:1080-1083\",\"Insecure\":true,\"RecvWindowConn\":1048576,\"RecvWindow\":393216,\"Engine\":\"libuz.so\"}"
+echo "{\"Server\":\"${SERVER_DOMAIN}\",\"ServerIP\":\"${SERVER_IP}\",\"Protocol\":\"Hysteria1 (UDP)\",\"Obfs\":\"${OBFS_KEY}\",\"Auth\":\"${AUTH_KEY}\",\"Ports\":[\"6000-19999\"],\"UpMbps\":\"${SERVER_DOWN_MBPS}\",\"DownMbps\":\"${SERVER_UP_MBPS}\",\"Socks5Listen\":\"127.0.0.1:1080-1083\",\"Insecure\":true,\"RecvWindowConn\":1048576,\"RecvWindow\":393216,\"Engine\":\"libuz.so\"}"
 echo ""
 echo -e "${GREEN}${BOLD}Enjoy your high-speed ZI-UDP Tunnel!${NC}"
